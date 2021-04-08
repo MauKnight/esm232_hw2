@@ -1,0 +1,51 @@
+---
+title: "ESM 232 - Homework 2"
+author: "Kat Leigh, Alex Milward, David Segan and Mauricio Collado"
+date: "4/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# We upload the packages
+library(tidyverse)
+library(devtools)
+library(here)
+
+```
+
+### 1. Function goal
+The goal is the estimation of the yield anomaly of almonds (ton per acre) based on the average minimum temperature (C) of February, and the average precipitation (mm) of January. 
+
+### 2. Dataframe format
+
+```{r}
+# 2. Dataframe format
+#
+#' Dataframe requires the following columns: date, day, month, year, 
+#' daily precipitations,and daily minimum temperature
+#' The columns must be named exactly: day, month, year, tmin_c, and precip 
+#' The variable units are Celsius (tmin_c) and mm (precip)
+#
+# Read in data
+climate_df <- read.delim(here('clim.txt'), sep = " ")
+
+```
+
+### 3. Results and analysis
+We run the model for period 1989-2010, because the monthly data was available for those years.
+
+```{r}
+# We call our almond model
+source(here("almond_anomaly.R"))
+
+# We run for the specific dataset, named climate_df
+# The parameters are the default ones
+
+test <- almond_anomaly(climate_df)
+
+```
+

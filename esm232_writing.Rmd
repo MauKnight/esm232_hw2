@@ -45,7 +45,22 @@ source(here("almond_anomaly.R"))
 # We run for the specific dataset, named climate_df
 # The parameters are the default ones
 
-test <- almond_anomaly(climate_df)
+yield_anomalies <- almond_anomaly(climate_df)
 
+```
+
+```{r}
+# summarize yearly yield anomalies with bar plot
+yield_plot <- ggplot(data = yield_anomalies, aes(x = year, y = yield)) +
+  geom_col(aes(fill = yield)) +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme_bw() +
+  labs(x = "year", 
+       y = "yield anomaly (tons/acre)",
+       title = "Almond yield anomaly by year",
+       subtitle = "1989 - 2010")
+
+yield_plot
 ```
 

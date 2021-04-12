@@ -39,10 +39,6 @@ climate_df <- read.delim(here('clim.txt'), sep = " ")
 
 ```
 
-The program will run the following function for each year of data:
-
-
-
 In the next section we will call the following function in .R format:
 
 ```{r, eval=FALSE}

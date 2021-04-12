@@ -9,6 +9,13 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
+```{r}
+# We upload the packages
+library(tidyverse) # basic tools
+library(devtools)
+library(here) # to locate the files easy
+```
+
 ### 1. Objective
 The goal is the estimation of the yield anomaly of almonds based on the average minimum temperature of February, and the average precipitation  of January. We employ the following regression model proposed by Lobell et al. (2006):
 
@@ -26,11 +33,6 @@ The **Appendix** has the R source code for almond anomaly yield function.
 The dataframe requires daily data about minimum temperature (Celsius), and precipitations (mm). We display all the details for dataset management below:
 
 ```{r}
-# 1. We upload the packages
-library(tidyverse) # basic tools
-library(devtools)
-library(here) # to locate the files easy
-
 # 2. Dataframe format
 #
 #' Dataframe requires the following columns: date, day, month, year, 
@@ -45,10 +47,8 @@ climate_df <- read.delim(here('clim.txt'), sep = " ")
 ### 3. Results and analysis
 We run the model for period 1988-2010, because the monthly data was available for those years.
 
-\pagebreak
-
 ```{r}
-# 3.1 We call our almond model (CHECK APPENDIX)
+# 3.1 We call our almond model
 source(here("almond_anomaly.R"))
 
 # 3.2We run for the specific dataset, named climate_df
@@ -81,15 +81,26 @@ This graph depicts the estimated yield anomalies for almonds produced between th
 ### References
 - Lobell, D., Field C., Cahill, K., & Bonfils, C. (2006). Impacts of future climate change on California perennial crop yields: Model projections with climate and crop uncertainties. *Agricultural and Forest Meteorology* 141, 208–218.
 
-### Appendix: Almond yield anomalies function
+### Appendix: Almond yield anomalies program
 
 ```{r, eval=FALSE}
 # Function to calculate the yield anomaly for almonds
 # ESM 232
 # Function developed by Kat Leigh, David Segan, Alex Milward and Mauricio Collado
 ######################################
-
-# Model for yield anomaly for almonds
+# 1. We upload the packages
+library(tidyverse)
+library(here)
+# 2. Dataframe format
+#
+#' Dataframe requires the following columns: date, day, month, year, 
+#' daily precipitations,and daily minimum temperature
+#' The columns must be named exactly: day, month, year, tmin_c, and precip 
+#' The variable units are Celsius (tmin_c) and mm (precip)
+#
+# Read in data
+climate_df <- read.delim(here('clim.txt'), sep = " ")
+# 3. Model for yield anomaly for almonds
 #
 # Function uses a polynomic model with 2 climate variables
 # to estimate the yield anomaly for almonds (tons acre)
@@ -101,9 +112,8 @@ This graph depicts the estimated yield anomalies for almonds produced between th
 #' @param coef_p1 coefficient for precipitation Default is -0.07
 #' @param coef_p2 coefficient for squared precipitation Default is 0.0043
 #' @param intercept Intercept of the relationship Default 0.28
-#' Example (with defaults): yield_anomalies <- almond_anomaly(climate_df)
 #' @references
-#' Lobell et al. (2006).
+#' Lobell (2006).
 
 almond_anomaly = function(climate_df, #dataframe
                           var1_mon=2, #month for variable 1
@@ -113,28 +123,23 @@ almond_anomaly = function(climate_df, #dataframe
                           coef_p1=-0.07, #coeficient for precip
                           coef_p2=0.0043, #coeficient for squared precip
                           intercept=0.28){ #contant
-
 # We filter the dataframe for monthly average precipitation and minimun temp
 filt_clim_df <- climate_df %>%
    group_by(year, month) %>% #we group by month and year
    summarize(mean_tmin = mean(tmin_c), #mean t_min within each month
              sum_p = sum(precip)) %>%  #sum of precip within each month
    filter(month %in% c(var1_mon,var2_mon)) # we keep the relevant months
-
 # first and last year
 firstyear=min(filt_clim_df$year) # first year of filtered dataset
 lastyear=max(filt_clim_df$year) # last year of filtered dataset
-
 # We filter the dataframe for the average minimum temperatures for February of each year
 clim_var1_df <- filt_clim_df %>% 
    filter(month == var1_mon) %>% #filter month for tmin
    select(mean_tmin)
-
 # We filter the dataframe for total precipitation for January of each year
 clim_var2_df <- filt_clim_df %>% 
    filter(month == var2_mon) %>% #filter month for precip
    select(sum_p)
-
 # We process the information and save it into a dataframe
 yield_anom <- data.frame(year= seq(firstyear, lastyear, by = 1), # year
                          yield=coef_t1*clim_var1_df$mean_tmin # estimation
@@ -145,7 +150,6 @@ yield_anom <- data.frame(year= seq(firstyear, lastyear, by = 1), # year
 return(yield_anom) # result as dataset
              
 }
-
 ######################################
 # The end
 ```

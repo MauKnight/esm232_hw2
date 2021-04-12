@@ -33,46 +33,46 @@ climate_df <- read.delim(here('clim.txt'), sep = " ")
 #' @references
 #' Lobell (2006).
 
-almond_anomaly = function(climate_df, 
-                          var1_mon=2, 
-                          var2_mon=1, 
-                          coef_t1=-0.015, 
-                          coef_t2=-0.0046, 
-                          coef_p1=-0.07, 
-                          coef_p2=0.0043, 
-                          intercept=0.28){
+almond_anomaly = function(climate_df, #dataframe
+                          var1_mon=2, #month for variable 1
+                          var2_mon=1, #month for variable 1
+                          coef_t1=-0.015, #coeficient for tmin
+                          coef_t2=-0.0046, #coeficient for squared tmin
+                          coef_p1=-0.07, #coeficient for precip
+                          coef_p2=0.0043, #coeficient for squared precip
+                          intercept=0.28){ #contant
 
 # We filter the dataframe for monthly average precipitation and minimun temp
 
 filt_clim_df <- climate_df %>%
-   group_by(year, month) %>%
-   summarize(mean_tmin = mean(tmin_c),
-             sum_p = sum(precip)) %>% 
-   filter(month %in% c(var1_mon,var2_mon))
+   group_by(year, month) %>% #we group by month and year
+   summarize(mean_tmin = mean(tmin_c), #mean t_min within each month
+             sum_p = sum(precip)) %>%  #sum of precip within each month
+   filter(month %in% c(var1_mon,var2_mon)) # we keep the relevant months
 
 # first and last year
-firstyear=min(filt_clim_df$year) # starting + number of years -1
-lastyear=max(filt_clim_df$year) # starting + number of years -1
+firstyear=min(filt_clim_df$year) # first year of filtered dataset
+lastyear=max(filt_clim_df$year) # last year of filtered dataset
 
 # We filter the dataframe for the average minimum temperatures for February of each year
 clim_var1_df <- filt_clim_df %>% 
-   filter(month == var1_mon) %>% 
+   filter(month == var1_mon) %>% #filter month for tmin
    select(mean_tmin)
 
 # We filter the dataframe for total precipitation for January of each year
 clim_var2_df <- filt_clim_df %>% 
-   filter(month == var2_mon) %>% 
+   filter(month == var2_mon) %>% #filter month for precip
    select(sum_p)
 
 # We process the information and save it into a dataframe
-yield_anom <- data.frame(year= seq(firstyear, lastyear, by = 1), 
-                         yield=coef_t1*clim_var1_df$mean_tmin
+yield_anom <- data.frame(year= seq(firstyear, lastyear, by = 1), # year
+                         yield=coef_t1*clim_var1_df$mean_tmin # estimation
                             + coef_t2*(clim_var1_df$mean_tmin^2) 
                             + coef_p1*clim_var2_df$sum_p 
                             + coef_p2*(clim_var2_df$sum_p^2) 
                             + intercept)
 
-return(yield_anom)
+return(yield_anom) # result as dataset
              
 }
 

@@ -18,7 +18,10 @@ library(purrr)
 
 # call function that calculates the yield anomaly for almonds
 source("almond_anomaly.R")
+source("almond_profit.R")
+source("compute_NPV.R")
 ```
+
 ```{r}
 # Sensitivity analysis
 
@@ -46,6 +49,20 @@ ggplot(result_run, aes(year,yield, group=year))+
   geom_boxplot()
 
 ```
+```{r}
+# Net present value
+
+# We calculate the average production+anomaly (maybe this can be part of the model)
+result_run1 <- result_run %>% 
+    mutate(true_yield=1+yield)
+
+#we assume 100 acres
+profit_almond <- almond_profit(almond=result_run1$true_yield, year=result_run1$year)
+
+ggplot(profit_almond , aes(year, netpre, group=year))+geom_boxplot()+labs(y="Profit in current $", x="year")
+
+```
+
 
 
 

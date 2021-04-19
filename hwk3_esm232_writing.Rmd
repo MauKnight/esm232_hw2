@@ -1,0 +1,51 @@
+---
+title: "Hw3"
+author: "Kat Leigh, Alex Milward, David Segan and Mauricio Collado"
+date: "4/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# import libraries
+library(tidyverse)
+library(here)
+library(devtools)
+library(purrr)
+
+# call function that calculates the yield anomaly for almonds
+source("almond_anomaly.R")
+```
+```{r}
+# Sensitivity analysis
+
+# read in data
+climate_df <- read.delim(here('clim.txt'), sep = " ")
+
+# we create our variables
+coef_p2_value <- 0.0043 # set the mean
+number_runs <-  500 # set the runs
+
+# we create our variable
+coef_p2 <- rnorm(n=number_runs, mean=coef_p2_value, sd=0.001)
+
+# sensitivity analysis 
+yield_anomaly_sens = coef_p2 %>% 
+  map(~almond_anomaly(climate_df, coef_p2=.x)) # we used our runs for coef_p2
+
+head(yield_anomaly_sens)
+
+# we extract the results and then keep them in a dataframe
+result_run = map_df(yield_anomaly_sens,`[`, c("year","yield"))
+
+# plot
+ggplot(result_run, aes(year,yield, group=year))+
+  geom_boxplot()
+
+```
+
+
+

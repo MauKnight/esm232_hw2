@@ -24,7 +24,7 @@ almond_profit = function(almond, year, price=2.5, cost=3800, acre=1, discount=0.
   # generate a unique identifier or scenario number
   scen = seq(from=1, to=length(almond))
   yearprofit = data.frame(scen=scen, almond=almond, year=year)
-  yearprofit$net =  yearprofit$almond*(price_ton)*acre-cost*acre
+  yearprofit$net =  (yearprofit$almond*(price_ton)*acre)-(cost*acre)
   
   # note how discount is passed through to this function
   # remember to normalize the year to start year e.g the first year

@@ -5,7 +5,7 @@ date: "4/18/2021"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -15,6 +15,7 @@ library(tidyverse)
 library(here)
 library(devtools)
 library(purrr)
+library(scales)
 
 # call function that calculates the yield anomaly for almonds
 source("almond_anomaly.R")
@@ -59,7 +60,8 @@ result_run1 <- result_run %>%
 #we assume 100 acres
 profit_almond <- almond_profit(almond=result_run1$true_yield, year=result_run1$year)
 
-ggplot(profit_almond , aes(year, netpre, group=year))+geom_boxplot()+labs(y="Profit in current $", x="year")
+ggplot(profit_almond , aes(year, netpre, group=year))+geom_boxplot()+labs(title= "Distribution of estimated annual profits from almond production for\n500 different p^2 coefficient values", caption = "Profits calculated based on the following values: price=$2.5/lb., cost=$3800/acre, acre=1, discount=0.12.", y="Profit in current $", x="year")+
+  scale_y_continuous(labels=dollar_format())
 
 ```
 

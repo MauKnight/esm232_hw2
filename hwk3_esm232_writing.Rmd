@@ -57,10 +57,10 @@ ggplot(result_run, aes(year,yield, group=year))+
 result_run1 <- result_run %>% 
     mutate(true_yield=1+yield)
 
-#we assume 100 acres
-profit_almond <- almond_profit(almond=result_run1$true_yield, year=result_run1$year)
+#we assume 1 acres
+npv_almond <- almond_profit(almond=result_run1$true_yield, year=result_run1$year)
 
-ggplot(profit_almond , aes(year, netpre, group=year))+geom_boxplot()+labs(title= "Distribution of estimated annual profits from almond production for\n500 different p^2 coefficient values", caption = "Profits calculated based on the following values: price=$2.5/lb., cost=$3800/acre, acre=1, discount=0.12.", y="Profit in current $", x="year")+
+ggplot(npv_almond , aes(year, netpre, group=year))+geom_boxplot()+labs(title= "Distribution of estimated annual profits from almond production for\n500 different p^2 coefficient values", caption = "Profits calculated based on the following values: price=$2.5/lb., cost=$3800/acre, acre=1, discount=0.12.", y="Profit in current $", x="year")+
   scale_y_continuous(labels=dollar_format())
 
 ```

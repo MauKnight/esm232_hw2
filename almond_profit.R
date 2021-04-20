@@ -18,8 +18,8 @@ almond_profit = function(almond, year, price=2.5, cost=3800, acre=1, discount=0.
     return(NA)
   
   # yield cannot be negative
-  #if (min(almond) < 0)
-   # return(NA)
+  # if (min(almond) < 0)
+  # return(NA)
   
   # generate a unique identifier or scenario number
   scen = seq(from=1, to=length(almond))

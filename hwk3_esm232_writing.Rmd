@@ -6,8 +6,31 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE, warning=FALSE, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
+
+### 1. Objective
+
+The objective is to perform a pseudo sensitivity analysis for the squared precipitation coefficient. Then, we calculate the annual net profits for the almond production considering its yield anomaly due to climate variability. We still use the regression model proposed by Lobell et al. (2006):
+
+$$Y(anom)_i = -0.015T_2n,i -0.0046(T_2n,i)^2-0.07p_1,i+0.0043(p_1,i)^2+0.28
+$$
+<br>
+- Y: yield anomaly in year i (ton/acr). <br>
+- Tn: minimum temperature of February in year i (Celsius). <br>
+- P: precipitation of January in year i (mm). <br>
+
+For our net profits function (NPV), we consider the sum of the average annual yield and its anomaly (that can be positive or negative), price, costs, used acres, and discount factor. 
+
+$$NPV = (price*(yield(average)-Y(anom))*acres-cost*acres)/(1+discount)^t
+$$
+- t: time (year). <br>
+
+The **Appendix** has the R source code for: <br>
+
+- Computing the annual NPV.
+- Computing the almond profits incorporating the sensitivity on squared precipitations.
+
 
 ```{r}
 # import libraries
@@ -17,13 +40,17 @@ library(devtools)
 library(purrr)
 library(scales)
 
-# call function that calculates the yield anomaly for almonds
-source("almond_anomaly.R")
+# call functions
+source("almond_anomaly.R") # almond yield anomaly function
 source("almond_profit.R")
 source("compute_NPV.R")
 ```
 
-```{r}
+### 2. Sensitivity analysis <br>
+
+We do the sensitivity on 0.0043P^2 term. We vary it according to a normal distribution 500 times with the mean is equal to the parameter (0.0043), and the standard deviation is 0.001. Then, we graph our results using a boxplot. <br>
+
+```{r, results='hide'}
 # Sensitivity analysis
 
 # read in data
@@ -33,7 +60,7 @@ climate_df <- read.delim(here('clim.txt'), sep = " ")
 coef_p2_value <- 0.0043 # set the mean
 number_runs <-  500 # set the runs
 
-# we create our variable
+# we create our variable with a normal distribution
 coef_p2 <- rnorm(n=number_runs, mean=coef_p2_value, sd=0.001)
 
 # sensitivity analysis 
@@ -43,28 +70,162 @@ yield_anomaly_sens = coef_p2 %>%
 head(yield_anomaly_sens)
 
 # we extract the results and then keep them in a dataframe
-result_run = map_df(yield_anomaly_sens,`[`, c("year","yield"))
-
-# plot
-ggplot(result_run, aes(year,yield, group=year))+
-  geom_boxplot()
+anom_result = map_df(yield_anomaly_sens,`[`, c("year","yield"))
 
 ```
+<br>
+We observe that years with extreme precipitation rates (1995, 2005 and 2008) display outliers for yield anomaly and extreme variability. These results imply doubts about Lobell's function because the almond's yield anomaly may exceed the plant's productivity per acre. Also, extreme precipitations generate floods that can destroy the crops. Finally, these outliers years present high uncertainty. <br>
+
+```{r}
+# plot
+ggplot(anom_result, aes(year,yield, group=year)) +
+  geom_boxplot() +
+  labs(title= "Distribution of estimated yield anomaly for\n500 different p^2 coefficient values", 
+       caption = "The normal distribution for the p^2 coefficient considered u=0.0043 and sd=0.001", 
+       y="Yield anomaly", 
+       x="Year")
+
+
+```
+<br>
+If we omit the outlier years (1995, 2005, 2008), we confirm the distortion they caused, and other years 1997, 2001, and 2010 show importance in terms of squared precipitation. Still, the variability is pretty high.<br>
+
+```{r}
+# filter outlier years
+anom_result_no_out <- anom_result %>% 
+  filter(year != 1995, year != 2005, year != 2008)
+
+# plot
+ggplot(anom_result_no_out, aes(year,yield, group=year)) +
+  geom_boxplot() +
+  labs(title= "Distribution of estimated yield anomaly for\n500 different p^2 coefficient values (without outliers)", 
+       caption = "The normal distribution for the p^2 coefficient considered u=0.0043 and sd=0.001. 
+       The years 1995, 2005 and 2008 were omitted because they present outliers", 
+       y="Yield anomaly", 
+       x="Year")
+```
+<br>
+
+### 3. Net present value <br>
+
+Before running the NPV for the almond profits, we need to estimate the almond production. For this purpose, we will take our yield anomaly (tons/acre) and sum the annual average yield (tons/acre) of almonds. In this case, the yearly average is 1 ton/acre. Also, all negative values of this sum are replaced with zero. <br>
+
 ```{r}
 # Net present value
 
 # We calculate the average production+anomaly (maybe this can be part of the model)
-result_run1 <- result_run %>% 
-    mutate(true_yield=1+yield)
 
+average_yield=1 #tons per year
+
+yield_result <- anom_result %>% 
+  mutate(true_yield=average_yield+yield,#yield=anomaly; true_yield=average+anomaly
+         true_yield_replace=ifelse(true_yield < 0, 0, true_yield))  
+  
 #we assume 1 acres
-npv_almond <- almond_profit(almond=result_run1$true_yield, year=result_run1$year)
+npv_almond <- almond_profit(almond=yield_result$true_yield_replace, 
+                            year=yield_result$year)
 
-ggplot(npv_almond , aes(year, netpre, group=year))+geom_boxplot()+labs(title= "Distribution of estimated annual profits from almond production for\n500 different p^2 coefficient values", caption = "Profits calculated based on the following values: price=$2.5/lb., cost=$3800/acre, acre=1, discount=0.12.", y="Profit in current $", x="year")+
-  scale_y_continuous(labels=dollar_format())
 
 ```
 
+<br>
+
+Considering a discount rate of 0.12, one acre and bringing all the values back to 1989, we observe the profits may have a cyclical behavior except for the 1995 where the precipitations are too extreme. As expected, we also face a lot of profit uncertainty in the year 1995. Thus, it is not recommended to make risky strategies in those years unless the company has a good plan B.<br>
+
+```{r}
+ggplot(npv_almond , aes(year, netpre, group=year))+
+  geom_boxplot()+labs(title= "Distribution of estimated annual profits from almond production for\n500 different p^2 coefficient values", 
+                      caption = "Profits calculated based on the following values: price=$2.5/lb., cost=$3800/acre, acre=1, discount=0.12.", 
+                      y="Profit in current $", 
+                      x="year")+
+  scale_y_continuous(labels=dollar_format())
+```
+<br>
+
+If we omit the year 1995, we observe the NPV have a cyclical behavior linked to precipitations. Each 4-8 years, we can expect to have outstanding production, and net profits. <br>
+
+```{r}
+npv_almond_no_out <- npv_almond %>% 
+  filter(year != 1995)
+
+# plot
+ggplot(npv_almond_no_out , aes(year, netpre, group=year))+
+  geom_boxplot()+labs(title= "Distribution of estimated annual profits from almond production for\n500 different p^2 coefficient values ( year 1995 is omitted)", 
+                      caption = "Profits calculated based on the following values: price=$2.5/lb., cost=$3800/acre, acre=1, discount=0.12. 
+                      The year 1995 is omitted because it presents an outlier", 
+                      y="Profit in current $", 
+                      x="year")+
+  scale_y_continuous(labels=dollar_format())
+```
+<br>
+
+### References <br>
+- Lobell, D., Field C., Cahill, K., & Bonfils, C. (2006). Impacts of future climate change on California perennial crop yields: Model projections with climate and crop uncertainties. *Agricultural and Forest Meteorology* 141, 208–218.<br>
+
+### Appendix 1: Almond yield anomalies function
+
+```{r, eval=FALSE}
+#' Function to compute the net present value
+#' ESM 232
+#' Author: Naomi Tague
+######################################
+
+#' compute net present value
+#' @param value/cost ($)
+#' @param time in the future that cost/value occurs (years)
+#' @param discount rate. The default value is 0.12
+#' @return value in $
 
 
+compute_NPV = function(value, time, discount=0.12) {
+  result = value / (1 + discount)**time
+  return(result)
+}
+```
+
+### Appendix 2: Net profits for almonds
+
+```{r, eval=FALSE}
+# Function to calculate profits from almonds
+# ESM 232
+# Authors: Kat Leigh, David Segan, Alex Milward and Mauricio Collado
+######################################
+
+#' @param  almond (ton/acre)
+#' @param  year 
+#' @param  price ($/lb), the default value is $ 2.5/lb
+#' @param  cost (cost/acre), the default value is $ 3800/acre
+#' @param acre land parameter, the default value is 1
+#' @param discount rate, the default value is 0.12
+#' @return data frame with estimate of profit
+almond_profit = function(almond, year, price=2.5, cost=3800, acre=1, discount=0.12) {
+  
+  price_ton=price*2000 # we transform price/lb to price/ton
+  
+  # make sure values are reasonable
+  if (length(almond) < 1)
+    return(NA)
+  
+  # yield cannot be negative
+  # if (min(almond) < 0)
+  # return(NA)
+  
+  # generate a unique identifier or scenario number
+  scen = seq(from=1, to=length(almond))
+  #create dataframe with columns scenario, yield and years
+  yearprofit = data.frame(scen=scen, 
+                          almond=almond, 
+                          year=year) 
+  
+  # We calculate the net profits price*production - cost per acre
+  yearprofit$net =  (yearprofit$almond*(price_ton)*acre)-(cost*acre)
+  
+  # remember to normalize the year to start year e.g the first year
+  yearprofit= yearprofit %>% 
+    mutate(netpre = compute_NPV(value=net, time=year-year[1], discount=discount ))
+  
+  return(yearprofit)
+}
+
+```
 

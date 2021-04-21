@@ -1,6 +1,6 @@
 # Function to calculate profits from almonds
 # ESM 232
-# Function developed by Kat Leigh, David Segan, Alex Milward and Mauricio Collado
+# Authors: Kat Leigh, David Segan, Alex Milward and Mauricio Collado
 ######################################
 
 #' @param  price ($/lb)

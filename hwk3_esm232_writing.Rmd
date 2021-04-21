@@ -9,6 +9,30 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+In this document we conduct a sensitivity analysis for a simple almond farm production anomaly model. The model from Lobell et al., 2006 (see equation below) estimates almond yields using a regression based on the average minimum temperature of February, and the average precipitation  of January.
+
+$$Y = -0.015T_2n -0.0046T_2n^2-0.07p_1+0.0043p_1^2+0.28$$
+<br>
+- Y: yield anomaly (ton/acr). <br>
+- Tn: minimum temperature (Celsius). <br>
+- P: precipitation (mm). <br>
+
+We examine the sensitivity of this model to changes in the $$p_1^2$$ coefficient, where $$p_1$$ is January precipitation. We do this by randomly sampling from a normal distribution with a mean of 0.0043 and a standard deviation of 0.001 to generate 500 possible values for this coefficient. We then run the model to generate outputs that correspond to these 500 values.
+
+To put these anomalies in context, we then calculate the corresponding profits and net present value of these profits associated with the outputs. THe euqations for profit and Net Present Value are given below. We assume the estimated anomalies produced by the model are tons per acre. We also assume a price of \$2.5 per lb. of almonds produced, a cost of $3,800 per acre of land, and discount rate of 0.12.
+
+Profit: $$profit_y = Y_y*price_t*acre-cost*acre$$
+Net Present Value: $$NPV = (profit_y / (1 + discount))*time$$
+
+<br>
+- Y_y: yield for a single year (ton/acr), calculated as 1 + the anomaly. <br>
+- profit_y: profit for a single year. <br>
+- acre: number of acres used to produce the yield anomaly. <br>
+- price_t: price earned per ton of almonds produced. <br>
+- cost: cost per acre. <br>
+- discount: discount rate. <br>
+- time: the time in the future that the profit occurs. <br>
+  
 ```{r}
 # import libraries
 library(tidyverse)
@@ -17,50 +41,68 @@ library(devtools)
 library(purrr)
 library(scales)
 
-# call function that calculates the yield anomaly for almonds
+# call functions that calculate the yield anomaly for almonds, the associated profits, and net present value.
 source("almond_anomaly.R")
 source("almond_profit.R")
 source("compute_NPV.R")
 ```
 
 ```{r}
-# Sensitivity analysis
-
 # read in data
 climate_df <- read.delim(here('clim.txt'), sep = " ")
 
-# we create our variables
+# Sensitivity analysis
+
+# create the coefficient values
 coef_p2_value <- 0.0043 # set the mean
 number_runs <-  500 # set the runs
-
-# we create our variable
 coef_p2 <- rnorm(n=number_runs, mean=coef_p2_value, sd=0.001)
 
-# sensitivity analysis 
+# conduct analysis by running model over the range of 500 different coefficient values
+
 yield_anomaly_sens = coef_p2 %>% 
-  map(~almond_anomaly(climate_df, coef_p2=.x)) # we used our runs for coef_p2
+  map(~almond_anomaly(climate_df, coef_p2=.x))
 
-head(yield_anomaly_sens)
+head(yield_anomaly_sens) # check out the first few results
 
-# we extract the results and then keep them in a dataframe
-result_run = map_df(yield_anomaly_sens,`[`, c("year","yield"))
+# extract the results and keep in a data frame
 
-# plot
-ggplot(result_run, aes(year,yield, group=year))+
-  geom_boxplot()
+result_run = map_df(yield_anomaly_sens,`[`, c("year","yield")) %>% 
+  mutate(coefficient =
+           c(rep(1:500, each=22))
+           )
+max_min <- result_run %>% 
+  group_by(year) %>% 
+  summarise(max = max(yield),
+            min = min(yield),
+            coefficient = unique(coefficient))
+
+# plot the anomalies
+ggplot()+
+  geom_boxplot(data=result_run, aes(x=year,y=yield, group=year))+
+  labs(title = "Almond Anomolies per year across a range of coefficient values for p^2",
+       y= "Anomaly (ton/acre)",
+       x= "Year")
+#+
+  # geom_point(data=max_min, aes(x=year,y=yield, color=coefficient, fill=coefficient))+
+  # scale_fill_viridis_c()+
+  # scale_color_viridis_c()
 
 ```
 ```{r}
 # Net present value
 
-# We calculate the average production+anomaly (maybe this can be part of the model)
+# calculate the average net present value of profits based on the anomalies obtained previously
+
+# add the anomalies to the average per acre yield (1)
 result_run1 <- result_run %>% 
     mutate(true_yield=1+yield)
 
-#we assume 1 acres
+# calculate the NPV of the profits based on theis yields
 npv_almond <- almond_profit(almond=result_run1$true_yield, year=result_run1$year)
 
-ggplot(npv_almond , aes(year, netpre, group=year))+geom_boxplot()+labs(title= "Distribution of estimated annual profits from almond production for\n500 different p^2 coefficient values", caption = "Profits calculated based on the following values: price=$2.5/lb., cost=$3800/acre, acre=1, discount=0.12.", y="Profit in current $", x="year")+
+# plot the results
+ggplot(npv_almond , aes(year, netpre, group=year))+geom_boxplot()+labs(title= "Distribution of estimated annual Net Present Values from almond production\nfor 500 different p^2 coefficient values", caption = "Net Present Values calculated based on the following values: price=$2.5/lb., cost=$3800/acre, acre=1, discount=0.12.", y="Net Present Value in current $", x="year")+
   scale_y_continuous(labels=dollar_format())
 
 ```
